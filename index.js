@@ -20,13 +20,7 @@ app.use(cors({
 app.use(express.json({ limit: "1mb" }))
 
 const credentialsSchema = new mongoose.Schema(
-  {
-    user: String,
-    name: String,
-    pass: String
-  },
-  { collection: "bulkmail" }
-)
+  {},{ collection: "bulkmail" })
 
 const Credentials = mongoose.model("Credentials", credentialsSchema)
 const emailPattern = /^[^\s@]+@gmail\.com$/i
@@ -106,5 +100,5 @@ mongoose.connect(mongoUri)
   })
   .catch((error) => {
     console.error("MongoDB connection failed:", error.message)
-    process.exitCode = 1
+    process.exit(1)
   })
