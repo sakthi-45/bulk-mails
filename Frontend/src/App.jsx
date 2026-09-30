@@ -1,97 +1,214 @@
-
 import axios from "axios";
 import { useState } from "react";
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx";
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
+// Base URL configured to use your deployed Vercel backend
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || "https://bulkmail-be-gamma.vercel.app"
+).replace(/\/$/, "");
+
+// Standard Email Regex Pattern
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function App() {
+  const [msg, setMsg] = useState("");
+  const [status, setStatus] = useState(false);
+  const [emailList, setEmailList] = useState([]);
+  const [fileName, setFileName] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
 
-  const [msg,setmsg] = useState("")
-  const [status,setstatus] = useState(false)
-  const [emailList,setEmailList] = useState([])
-
-  function handlemsg(evt)
-  {
-    setmsg(evt.target.value)
+  function handleMsg(evt) {
+    setMsg(evt.target.value);
   }
 
-  function handlefile(event)
-  {
-    const file = event.target.files[0]
-    if (!file) {
-      setEmailList([])
-      return
+  // Parse Excel/CSV file content safely
+  function processFile(file) {
+    if (!file) return;
+
+    const validExtensions = [".xlsx", ".xls", ".csv"];
+    const isExtensionValid = validExtensions.some((ext) =>
+      file.name.toLowerCase().endsWith(ext)
+    );
+
+    if (!isExtensionValid) {
+      alert("Please upload a valid Excel (.xlsx, .xls) or CSV file.");
+      return;
     }
 
-    const reader = new FileReader()
+    setFileName(file.name);
+
+    const reader = new FileReader();
     reader.onload = function (loadEvent) {
       try {
-        const workbook = XLSX.read(loadEvent.target.result, { type: "array" })
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: "A", raw: false })
-        const emails = [...new Set(rows
-          .map((row) => String(row.A || "").trim())
-          .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))]
-        setEmailList(emails)
-      } catch {
-        setEmailList([])
-        alert("Unable to read that spreadsheet")
+        const data = new Uint8Array(loadEvent.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          throw new Error("Empty spreadsheet");
+        }
+
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+
+        // Extract valid email addresses across columns or from Column A
+        const extractedEmails = new Set();
+
+        rawRows.forEach((row) => {
+          if (Array.isArray(row)) {
+            row.forEach((cell) => {
+              const str = String(cell || "").trim();
+              if (EMAIL_REGEX.test(str)) {
+                extractedEmails.add(str.toLowerCase());
+              }
+            });
+          }
+        });
+
+        const finalEmailList = Array.from(extractedEmails);
+
+        if (finalEmailList.length === 0) {
+          alert("No valid email addresses were found in the uploaded file.");
+          setEmailList([]);
+          setFileName("");
+          return;
+        }
+
+        setEmailList(finalEmailList);
+      } catch (err) {
+        console.error("Spreadsheet Parsing Error:", err);
+        setEmailList([]);
+        setFileName("");
+        alert("Unable to read that spreadsheet. Please check the file format.");
       }
-    }
-    reader.readAsArrayBuffer(file)
+    };
+
+    reader.readAsArrayBuffer(file);
   }
 
-  async function send()
-  {
+  function handleFileChange(event) {
+    const file = event.target.files[0];
+    processFile(file);
+  }
+
+  // Drag & Drop Handlers
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFile(e.dataTransfer.files[0]);
+      e.dataTransfer.clearData();
+    }
+  }
+
+  async function send() {
     if (!msg.trim()) {
-      alert("Please enter your email message")
-      return
+      alert("Please enter your email message.");
+      return;
     }
 
     if (emailList.length === 0) {
-      alert("Please upload a spreadsheet with email addresses in column A")
-      return
+      alert("Please upload a spreadsheet with valid email addresses.");
+      return;
     }
 
-    setstatus(true)
+    setStatus(true);
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/sendemail`, { msg, emailList })
-      alert(response.data.message || "Emails sent successfully")
+      const response = await axios.post(`${API_BASE_URL}/api/sendemail`, {
+        msg: msg.trim(),
+        emailList: emailList,
+      });
+
+      alert(response.data?.message || "Emails sent successfully!");
     } catch (error) {
-      alert(error.response?.data?.message || "Unable to connect to the backend")
+      console.error("API Error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        "Unable to connect to the backend server. Please check your network or server setup.";
+      alert(errorMessage);
     } finally {
-      setstatus(false)
+      setStatus(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-700 to-cyan-500">
-      <div className="text-center py-4">
-        <h1 className="text-3xl font-bold tracking-wide text-white">BULK-MAIL</h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-700 to-cyan-500 text-white">
+      <div className="text-center py-6">
+        <h1 className="text-4xl font-bold tracking-wide">BULK-MAIL</h1>
       </div>
 
-      <div className="text-white text-center">
-        <h1 className="font-medium px-5 py-3 text-xl">We can help you with sending multiple emails at once</h1>
+      <div className="text-center">
+        <h2 className="font-medium px-5 py-2 text-xl">
+          We can help you send multiple emails at once
+        </h2>
       </div>
 
-      <div className="text-white text-center">
-        <h1 className="font-medium px-5 py-3">DRAG AND DROP</h1>
-      </div>
+      <div className="flex flex-col items-center px-5 py-6 max-w-4xl mx-auto">
+        {/* Email Message Input */}
+        <textarea
+          onChange={handleMsg}
+          value={msg}
+          disabled={status}
+          className="w-full max-w-2xl h-52 py-3 px-4 outline-none border border-white/30 bg-white/10 backdrop-blur-sm rounded-md placeholder-white/70 text-white focus:ring-2 focus:ring-white/50 transition resize-y"
+          placeholder="Enter the email text here..."
+        />
 
-      <div className="flex flex-col items-center text-white px-5 py-8">
-        <textarea onChange={handlemsg} value={msg} className="w-[80%] h-60 py-2 outline-none px-3 border border-white/30 bg-white/10 backdrop-blur-sm rounded-md placeholder-white/70 text-white" placeholder="Enter the email text ...."></textarea>
-
-        <div>
-          <input type="file" accept=".xlsx,.xls,.csv" onChange={handlefile} className="border-2 border-dashed border-white/40 bg-white/10 rounded-md py-4 px-4 mt-5 mb-5 text-white" />
+        {/* Drag and Drop Zone */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`w-full max-w-2xl mt-6 p-6 border-2 border-dashed rounded-md text-center transition cursor-pointer bg-white/10 backdrop-blur-sm ${
+            isDragging ? "border-cyan-300 bg-white/20" : "border-white/40 hover:border-white/70"
+          }`}
+        >
+          <input
+            type="file"
+            id="fileInput"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+            disabled={status}
+            className="hidden"
+          />
+          <label htmlFor="fileInput" className="cursor-pointer block">
+            <p className="font-semibold text-lg">
+              {isDragging ? "Drop your file here" : "Drag and drop your spreadsheet here"}
+            </p>
+            <p className="text-sm opacity-80 mt-1">or click to browse (.xlsx, .xls, .csv)</p>
+            {fileName && (
+              <p className="mt-3 text-cyan-200 font-medium">Selected file: {fileName}</p>
+            )}
+          </label>
         </div>
 
-        <p>Total Emails in the file: {emailList.length}</p>
+        {/* Status Info */}
+        <p className="mt-4 text-lg">
+          Total Valid Emails: <span className="font-bold">{emailList.length}</span>
+        </p>
 
-        <button onClick={send} disabled={status} className="mt-2 bg-white text-indigo-900 py-2 px-4 font-semibold rounded-md w-fit disabled:opacity-60 hover:bg-white/90 transition">{status?"Sending...":"Send"}</button>
+        {/* Submit Button */}
+        <button
+          onClick={send}
+          disabled={status || emailList.length === 0 || !msg.trim()}
+          className="mt-6 bg-white text-indigo-900 py-2.5 px-8 font-semibold rounded-md shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/90 active:scale-95 transition"
+        >
+          {status ? "Sending..." : "Send Emails"}
+        </button>
       </div>
-
-      <div className="p-8"></div>
     </div>
   );
 }
