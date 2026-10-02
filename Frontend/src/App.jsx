@@ -2,10 +2,8 @@ import axios from "axios";
 import { useState } from "react";
 import * as XLSX from "xlsx";
 
-// Base URL configured to use your deployed Vercel backend
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || "https://bulkmail-be-gamma.vercel.app"
-).replace(/\/$/, "");
+// Production API is served by this Vercel project; local development uses the backend server.
+const API_BASE_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
 
 // Standard Email Regex Pattern
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
