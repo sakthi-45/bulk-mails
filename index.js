@@ -5,7 +5,7 @@ const mongoose = require("mongoose")
 const nodemailer = require("nodemailer")
 
 const app = express()
-const allowedOrigins = (process.env.FRONTEND_ORIGINS || "http://localhost:5173,https://depfront.vercel.app")
+const allowedOrigins = (process.env.FRONTEND_ORIGINS || "http://localhost:5173,https://bulkmail-9go9jh0al-sakthivelmurugadass-2135s-projects.vercel.app")
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""))
 

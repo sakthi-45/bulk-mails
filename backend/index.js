@@ -5,7 +5,7 @@ const sendEmail = require("./sendemail")
 const app = express()
 
 // Configurable origins via environment variables
-const defaultOrigins = "http://localhost:5173,https://depfront.vercel.app"
+const defaultOrigins = "http://localhost:5173,https://bulkmail-9go9jh0al-sakthivelmurugadass-2135s-projects.vercel.app"
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || defaultOrigins)
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""))
