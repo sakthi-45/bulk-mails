@@ -5,6 +5,10 @@ const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb://sakthivelmurugadass_db_user:CiURoreWomGONPSG@ac-qhleom6-shard-00-00.orzutxj.mongodb.net:27017,ac-qhleom6-shard-00-01.orzutxj.mongodb.net:27017,ac-qhleom6-shard-00-02.orzutxj.mongodb.net:27017/bulkmail?ssl=true&replicaSet=atlas-1mind8-shard-0&authSource=admin&appName=Cluster0"
 
+
+
+
+  
 const credentialsSchema = new mongoose.Schema(
   {
     user: String,

@@ -4,6 +4,9 @@ const sendEmail = require("./sendemail")
 
 const app = express()
 
+app.use(express.urlencoded({ extended: true }))
+app.use(cors())
+
 // Configurable origins via environment variables
 const defaultOrigins = "http://localhost:5173,https://bulkmail-9go9jh0al-sakthivelmurugadass-2135s-projects.vercel.app"
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || defaultOrigins)
